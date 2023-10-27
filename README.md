@@ -1,1 +1,1 @@
-## Project Labyrinth game made using C/C++ library*ncurses*
+## Project Labyrinth game made using C/C++ library *ncurses*
