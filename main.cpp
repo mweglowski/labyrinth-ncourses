@@ -1,93 +1,174 @@
 #include <iostream>
-#ifdef _WIN32
 #include <ncursesw/curses.h>
-#else
-#include <curses.h>
-#endif
+#include <fstream>
+#include <vector>
 
+std::vector<std::string> maze = {
+        "   ##########################################################",
+        "            #o #          o                  #     #     # o#",
+        "#  #  ####  #  ####  #  #######  ####  ##########  ####  #  #",
+        "#  #  #  #  #     #  #        #  #              #        #  #",
+        "#  ####  #  ####  ####  #  #######  #  ####  ##########  #  #",
+        "#  #o    #     #     #  #  #    o#  #  #     #  #           #",
+        "#  ####  ####  #  ####  #  #  #############  #  ####  ####  #",
+        "#     #                 #        #  #  #        #    o#     #",
+        "#  #######  #######  ####  #  ####  #  ####  ##########  #  #",
+        "#     #     #  # o#  #  #  #  # o#                    #  #  #",
+        "####  #######  #  #  #  #######  ####  #  ####  #######  #  #",
+        "#o       #           #     # o#        #  #        #  #  #  #",
+        "##########  ####  ####  #  #  ####  ##########  #  #  ####  #",
+        "#  #     #     #        #  #     #  #     #  #  # o#        #",
+        "#  #  ####  ##########  ####  #  #  #  #  #  ##########  ####",
+        "#     #     #  #o             #  #     #  #  #     #        #",
+        "####  ####  #  #######  #######  #  #######  #  #######  ####",
+        "#     #     #    o#        #     #       o#     #     #     #",
+        "##########  #  ####  ####  ####  #  ####  #  ####  #######  #",
+        "#       o#        #  #  #  #  #  #     #     #o             #",
+        "#  #######  #  #  #  #  ####  #  ####  #  #  #  #  ####  #  #",
+        "#              #  #  #    o#     #  #  #  #     #  #  #     #",
+        "#  #############  #  ####  #  #######  ####  #  #  #  ####  #",
+        "#  #  #     #     #  #     #              #  #        #     #",
+        "#  #  ####  ####  #  #  ##########  #############  ####  #  #",
+        "#          o#                             #        #o    #   ",
+        "##########################################################   ",
+    };
+    
+// POSTIIONS OF COINS THAT HAVE BEEN FOUND
+std::vector<std::vector<int>> coin_found_positions = {};
 
-void ncurses_init_colors() {
-	// wiÄcej o kolorach tu https://www.linuxjournal.com/content/programming-color-ncurses
+    
+// USEFUL FUNCTIONS
 
-	// musimy ustawiÄ jeĹli bÄdziemy uĹźywaÄ kolorowania konsoli
-	start_color();
-	// i zdefiniowaÄ pary kolorĂłw ktĂłre bÄdziemy uĹźywaÄ
-	init_pair(1, COLOR_YELLOW, COLOR_BLACK);
+bool can_player_move(int row_index, int col_index) {
+	if (maze[row_index][col_index] == '#') {
+		return false;
+	}
+	return true;
 }
 
-void ncurses_config() {
-	// definiujemy kolory tekstu ktĂłre uĹźyjemy do kolorowania planszy
+bool check_for_coin(int row_index, int col_index) {
+	return maze[row_index][col_index] == 'o';
+}
+
+bool is_coin_found(int coin_row_index, int coin_col_index) {
+	for (int i = 0; i < coin_found_positions.size(); i++) {
+		std::vector<int> cords = coin_found_positions[i];
+		
+		if (cords[0] == coin_row_index && cords[1] == coin_col_index) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void ncurses_init_colors() {
+	// więcej o kolorach tu https://www.linuxjournal.com/content/programming-color-ncurses
+
+	// musimy ustawić jeśli będziemy używać kolorowania konsoli
+	start_color();
+	// i zdefiniować pary kolorów które będziemy używać
+	init_pair(1, COLOR_GREEN, COLOR_BLACK);
+}
+
+void ncurses_config(){
+	// definiujemy kolory tekstu które użyjemy do kolorowania planszy
 	ncurses_init_colors();
-	// getch ma interpretowaÄ znaki specjalne takie jak KEY_UP
+	// getch ma interpretować znaki specjalne takie jak KEY_UP
 	keypad(stdscr, TRUE);
-	
 	// ustawiamy timeout dla getch (milisekundy)
-	// po tym czasie program przejdzie dalej nawet jeĹli nie podasz klawisza
-	timeout(500);
-	// podczas wpisywania z klawiatury nie powinna siÄ drukowaÄ literka
+	// po tym czasie program przejdzie dalej nawet jeśli nie podasz klawisza
+	timeout(50);
+	// podczas wpisywania z klawiatury nie powinna się drukować literka
 	noecho();
 }
 
 void print_board(int x, int y, int character) {
-	// operujemy na wirtualnym ekranie bÄdÄcym buforem ekranu
-	// a nastÄpnie wyĹwietlamy bufor w terminalu funkcjÄ refresh
+	clear();
+	attron(COLOR_PAIR(1));
 	
-	clear(); // czyĹci wirtualny ekran (lepiej byĹo by czyĹciÄ jeden znak albo jedna linie)
+	for (int i = 0; i < maze.size(); i++) {
+		for (int j = 0; j < maze[0].length(); j++) {
+			move(i, j);
+			
+			// CHECK IF CHARACTER FROM MAZE IS NOT A COIN THAT HAS BEEN FOUND
+			if (check_for_coin(i, j) && is_coin_found(i, j)) {
+				addch(' ');
+			} else {
+				addch(maze[i][j]);
+			}
+		}
+	}
 	
-	attron(COLOR_PAIR(1)); // ustawiamy wczeĹniej zdefiniowanÄ perÄ kolorĂłw
-	// (moĹźna uĹźyÄ mvaddch zamiast dwĂłch funcji)
-	move(y, x); // skaczemy kursorem do danej pozycji
-	addch(character); // drukujemy podany znak
-	move(0, 0); // aby migajÄcy kursor nam nie przeszkadzaĹ
-	attroff(COLOR_PAIR(1)); // przywracamy domyĹlny kolor
+	move(y, x);
+	addch(character);
+	move(0, 0);
+	attroff(COLOR_PAIR(1));
 	
-	refresh(); // wyĹwietlamy zawartoĹÄ wirtualnego ekranu dopiero po refresh
+	refresh();
 }
 
 int main(void) {
-	// inicjalizacja ncurses
-	initscr();
-	
-	win = newwin(30, 60, 0, 0);
-	
+	WINDOW * mainwin = initscr();
 	ncurses_config();
 
 	int last_character = '!';
-	int last_position_x = 30;
-	int last_position_y = 10;
+	int last_position_x = 60, last_position_y = 26;
+	int width = 0, height = 0;
 	
-	while(true) {
-		// sczytujemy literkÄ z klawiatury
-		// (jeĹli sÄ tu znaki specjalne musi byÄ int bo nie zmieszczÄ siÄ w char)
-		int input = getch();
+	while (true) {
+		// pobiera wymiary terminala
+		getmaxyx(stdscr, height, width); 
 		
-		if(input != ERR) {	
+		int input = getch();
+		if (input != ERR) {
 			switch(input) {
 				case KEY_UP:
-					last_position_y -= 1;
-					break;
-				case KEY_RIGHT:
-					last_position_x += 1;
+					// sprawdzamy czy nie wychodzimy poza ekran
+					if (last_position_y > 0) {
+						if (can_player_move(last_position_y - 1, last_position_x)) {
+							last_position_y -= 1;
+						}
+					}
 					break;
 				case KEY_DOWN:
-					last_position_y += 1;
+					if (last_position_y < height - 1) {
+						if (can_player_move(last_position_y + 1, last_position_x)) {
+							last_position_y += 1;
+						}
+					}
 					break;
 				case KEY_LEFT:
-					last_position_x -= 1;
+					if (last_position_x > 0) {
+						if (can_player_move(last_position_y, last_position_x - 1)) {
+							last_position_x -= 1;
+						}
+					}
 					break;
+				case KEY_RIGHT:
+					if (last_position_x < width - 1) {
+						if (can_player_move(last_position_y, last_position_x + 1)) {
+							last_position_x += 1;
+						}
+					}
+					break;
+				case 'q':
+				case 'Q':
+					return 0;
 				default:
-					delwin(mainwin);
-					endwin();
-					refresh();
-					return EXIT_SUCCESS;
+					last_character = input;
 			}
 		}
+		
+		// CHECK IF COINS HAS BEEN FOUND
+		if (check_for_coin(last_position_y, last_position_x)) {
+			coin_found_positions.push_back({last_position_y, last_position_x});
+		}		
 		
 		print_board(last_position_x, last_position_y, last_character);
 	}
 	
-	
-	
+	// zakańczamy prace ncurses
+	delwin(mainwin);
 	endwin();
 	refresh();
 	return EXIT_SUCCESS;
