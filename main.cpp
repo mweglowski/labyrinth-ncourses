@@ -4,38 +4,38 @@
 #include <vector>
 
 std::vector<std::string> maze = {
-        "   ##########################################################",
-        "            #o #          o                  #     #     # o#",
+        "#  ##########################################################",
+        "# ## o         #                             #     #     #  #",
         "#  #  ####  #  ####  #  #######  ####  ##########  ####  #  #",
-        "#  #  #  #  #     #  #        #  #              #        #  #",
-        "#  ####  #  ####  ####  #  #######  #  ####  ##########  #  #",
-        "#  #o    #     #     #  #  #    o#  #  #     #  #           #",
-        "#  ####  ####  #  ####  #  #  #############  #  ####  ####  #",
-        "#     #                 #        #  #  #        #    o#     #",
+        "#  #  #     #     #  #        #  #              #        #  #",
+        "#  #  #  #######  ####  #  #######  #  ####  ##########  #  #",
+        "#     #  #           #  #  #     #  #  #     #  #           #",
+        "#############  #  ####  #  #  #############  #  ####  ####  #",
+        "#  #           #        #        #  #  #        #     #     #",
         "#  #######  #######  ####  #  ####  #  ####  ##########  #  #",
-        "#     #     #  # o#  #  #  #  # o#                    #  #  #",
-        "####  #######  #  #  #  #######  ####  #  ####  #######  #  #",
-        "#o       #           #     # o#        #  #        #  #  #  #",
-        "##########  ####  ####  #  #  ####  ##########  #  #  ####  #",
-        "#  #     #     #        #  #     #  #     #  #  # o#        #",
+        "#     #     #  #  #  #  #  #  #  #                    #  #  #",
+        "####  #  ####  #  #  #  #######  ####  #  ####  #######  #  #",
+        "#        #           #     #  #        #  #        #  #  #  #",
+        "#  #######  ####  ####  #  #  ####  ##########  #  #  ####  #",
+        "#  #           #        #  #     #  #     #  #  #  #        #",
         "#  #  ####  ##########  ####  #  #  #  #  #  ##########  ####",
-        "#     #     #  #o             #  #     #  #  #     #        #",
+        "#     #     #  #              #  #     #  #  #     #        #",
         "####  ####  #  #######  #######  #  #######  #  #######  ####",
-        "#     #     #    o#        #     #       o#     #     #     #",
+        "#     #     #     #        #     #        #     #     #     #",
         "##########  #  ####  ####  ####  #  ####  #  ####  #######  #",
-        "#       o#        #  #  #  #  #  #     #     #o             #",
+        "#        #        #  #  #  #  #  #     #     #              #",
         "#  #######  #  #  #  #  ####  #  ####  #  #  #  #  ####  #  #",
-        "#              #  #  #    o#     #  #  #  #     #  #  #     #",
+        "#              #  #  #     #     #  #  #  #     #  #  #     #",
         "#  #############  #  ####  #  #######  ####  #  #  #  ####  #",
         "#  #  #     #     #  #     #              #  #        #     #",
-        "#  #  ####  ####  #  #  ##########  #############  ####  #  #",
-        "#          o#                             #        #o    #   ",
-        "##########################################################   ",
+        "#  #  ####  ####  #  #  ##########  #############  ####  ## #",
+        "#           #                             #        #     #  #",
+        "##########################################################  #",
     };
     
 // POSTIIONS OF COINS THAT HAVE BEEN FOUND
 std::vector<std::vector<int>> coin_found_positions = {};
-
+int coin_found_counter = 0;
     
 // USEFUL FUNCTIONS
 
@@ -66,8 +66,13 @@ void ncurses_init_colors() {
 
 	// musimy ustawić jeśli będziemy używać kolorowania konsoli
 	start_color();
-	// i zdefiniować pary kolorów które będziemy używać
+	
+	// WALLS
 	init_pair(1, COLOR_GREEN, COLOR_BLACK);
+	// COINS
+	init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+	// PLAYER
+	init_pair(3, COLOR_RED, COLOR_BLACK);
 }
 
 void ncurses_config(){
@@ -84,7 +89,6 @@ void ncurses_config(){
 
 void print_board(int x, int y, int character) {
 	clear();
-	attron(COLOR_PAIR(1));
 	
 	for (int i = 0; i < maze.size(); i++) {
 		for (int j = 0; j < maze[0].length(); j++) {
@@ -94,15 +98,24 @@ void print_board(int x, int y, int character) {
 			if (check_for_coin(i, j) && is_coin_found(i, j)) {
 				addch(' ');
 			} else {
-				addch(maze[i][j]);
+				if (check_for_coin(i, j)) {
+					attron(COLOR_PAIR(2));
+					addch('o');
+					attron(COLOR_PAIR(2));
+				} else {
+					attron(COLOR_PAIR(1));
+					addch(maze[i][j]);
+					attroff(COLOR_PAIR(1));
+				}
 			}
 		}
 	}
 	
+	attron(COLOR_PAIR(3));
 	move(y, x);
 	addch(character);
 	move(0, 0);
-	attroff(COLOR_PAIR(1));
+	attroff(COLOR_PAIR(3));
 	
 	refresh();
 }
@@ -111,8 +124,9 @@ int main(void) {
 	WINDOW * mainwin = initscr();
 	ncurses_config();
 
-	int last_character = '!';
-	int last_position_x = 60, last_position_y = 26;
+	int last_character = '@';
+//	int last_position_x = 60, last_position_y = 26;
+	int last_position_x = 1, last_position_y = 1;
 	int width = 0, height = 0;
 	
 	while (true) {
@@ -162,6 +176,15 @@ int main(void) {
 		// CHECK IF COINS HAS BEEN FOUND
 		if (check_for_coin(last_position_y, last_position_x)) {
 			coin_found_positions.push_back({last_position_y, last_position_x});
+			coin_found_counter += 1;
+		}
+		
+		// CHECK FOR WIN
+		if ((coin_found_counter == 1) && ((last_position_y == 1) && (last_position_x == 1))) {
+			delwin(mainwin);
+			endwin();
+			refresh();
+			return EXIT_SUCCESS;
 		}		
 		
 		print_board(last_position_x, last_position_y, last_character);
