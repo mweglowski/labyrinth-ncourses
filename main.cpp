@@ -3,6 +3,10 @@
 #include <fstream>
 #include <vector>
 #include <random>
+#include <chrono>
+#include <fstream>
+#include <string>
+
 
 std::vector<std::string> maze = {
         "#############################################################",
@@ -111,13 +115,13 @@ void remove_coin_from_maze(int row_index, int col_index) {
 	maze[row_index][col_index] = ' ';
 }
 
-void init_ghost() {
-	int ghost_row_index = get_random_int(1, 25);
-	int ghost_col_index = get_random_int(1, 55);
+void init_ghost(int maze_height, int maze_width) {
+	int ghost_row_index = get_random_int(2, maze_height - 2);
+	int ghost_col_index = get_random_int(2, maze_width - 2);
 	
 	while (maze[ghost_row_index][ghost_col_index] == '#') {
-		ghost_row_index = get_random_int(1, 25);
-		ghost_col_index = get_random_int(1, 50);
+		ghost_row_index = get_random_int(2, maze_height - 2);
+		ghost_col_index = get_random_int(2, maze_width - 2);
 	}
 	
 	ghost_coords = {ghost_row_index, ghost_col_index};
@@ -133,52 +137,37 @@ bool is_direction_available(int direction, std::vector<int> available_directions
 }
 
 void move_ghost() {
-	int direction = get_random_int(0, 3);
-	int ghost_row_index = ghost_coords[0];
-	int ghost_col_index = ghost_coords[1];
-	
-	// CHECKING ALL AVAILABLE DIRECTIONS
-	std::vector<int> available_directions = {};
-	
-	if (check_for(ghost_row_index - 1, ghost_col_index, "wall") == false) {
-		// UP
-		available_directions.push_back(0);
-	} else if (!check_for(ghost_row_index, ghost_col_index + 1, "wall")) {
-		// RIGHT
-		available_directions.push_back(1);
-	} else if (check_for(ghost_row_index + 1, ghost_col_index, "wall") == false) {
-		// DOWN
-		available_directions.push_back(2);
-	} else if (!check_for(ghost_row_index, ghost_col_index - 1, "wall")) {
-		// LEFT
-		available_directions.push_back(3);
-	} else {
-		// GHOST IN INESCAPABLE PLACE
-		return;
-	}
-	
-	// IF NOT AVAILABLE, GET NEW AND SO ON
-	while (is_direction_available(direction, available_directions) == false) {
-		direction = get_random_int(0, 3);
-	}
-	
-	switch (direction) {
-		case 0:
-			ghost_coords = {ghost_coords[0] + 1, ghost_coords[1]};
-			break;
-		case 1:
-			ghost_coords = {ghost_coords[0], ghost_coords[1] + 1};
-			break;
-		case 2:
-			ghost_coords = {ghost_coords[0] - 1, ghost_coords[1]};
-			break;
-		case 3:
-			ghost_coords = {ghost_coords[0], ghost_coords[1] - 1};
-			break;
-		default:
-			return;	
-	}
+    std::vector<std::vector<int>> possible_moves;
+    
+    // Current ghost coordinates
+    int ghost_row = ghost_coords[0];
+    int ghost_col = ghost_coords[1];
+
+    // Check each direction for a possible move
+    // UP
+    if (ghost_row > 0 && maze[ghost_row - 1][ghost_col] != wall_char) {
+      possible_moves.push_back({ghost_row - 1, ghost_col});
+    }
+    // DOWN
+    if (ghost_row < maze.size() - 1 && maze[ghost_row + 1][ghost_col] != wall_char) {
+      possible_moves.push_back({ghost_row + 1, ghost_col});
+    }
+    // LEFT
+    if (ghost_col > 0 && maze[ghost_row][ghost_col - 1] != wall_char) {
+    	possible_moves.push_back({ghost_row, ghost_col - 1});
+    }
+    // RIGHT
+    if (ghost_col < maze[0].size() - 1 && maze[ghost_row][ghost_col + 1] != wall_char) {
+      possible_moves.push_back({ghost_row, ghost_col + 1});
+    }
+
+    // If there are possible moves, select one at random
+    if (!possible_moves.empty()) {
+      int move_index = get_random_int(0, possible_moves.size() - 1);
+      ghost_coords = possible_moves[move_index];
+    }
 }
+
 
 void ncurses_init_colors() {
 	start_color();
@@ -196,7 +185,7 @@ void ncurses_init_colors() {
 void ncurses_config() {
 	ncurses_init_colors();
 	keypad(stdscr, TRUE);
-	timeout(500);
+	timeout(250);
 	noecho();
 }
 
@@ -204,7 +193,7 @@ void print_board(int x, int y, int character) {
 	clear();
 	
 	// MOVE GHOST
-	move_ghost();
+//	move_ghost();
 	
 	for (int i = 0; i < maze.size(); i++) {
 		for (int j = 0; j < maze[0].length(); j++) {
@@ -248,11 +237,55 @@ int main(void) {
 	WINDOW * mainwin = initscr();
 	ncurses_config();
 	
-	int player_character = '@';
-	int player_col_index = 59, player_row_index = 25;
+	// CREATE MAZE
+	std::vector<std::vector<std::string>> mazes = {};
+	int maze_width = 30;
+	int maze_height = 10;
+	int levels_quantity = 5;
 	
-	// CREATE GHOST
-	init_ghost();
+	for (int level_index = 0; level_index < levels_quantity; level_index++) {
+		std::vector<std::string> maze = {};
+		std::string row = "";
+		
+		for (int i = 0; i < maze_height; i++) {
+			row = "";
+			
+			for (int j = 0; j < maze_width; j++) {
+				if (get_random_int(0, 100) >= 95 || j == 0 || j == maze_width - 1 || i == 0 || i == maze_height - 1) {
+					row += '#';
+				} else {
+					row += ' ';
+				}
+			}
+			
+			maze.push_back(row);
+		}
+		mazes.push_back(maze);
+	}
+	
+	maze = mazes[0];
+	
+//	std::ifstream file("data.txt");
+//  std::string line;
+//  int i = 0;
+//  while (std::getline(file, line)) {
+//    maze[0][i] = line[i];
+//    i += 1;
+//  }
+//  file.close();
+	
+	// INITIALIZE PLAYER
+	int player_character = '@';
+	int player_row_index = get_random_int(1, maze_height - 2);
+	int player_col_index = get_random_int(1, maze_width - 2);
+	
+	while (check_for(player_row_index, player_col_index, "wall")) {
+		player_row_index = get_random_int(1, maze_height - 2);
+		player_col_index = get_random_int(1, maze_width - 2);
+	}
+	
+	// INITIALIZE GHOST
+	init_ghost(maze_height, maze_width);
 	
 	
 	// FILL BLANKS WITH COINS
@@ -268,12 +301,18 @@ int main(void) {
 
 	int width = 0, height = 0;
 	
+	std::chrono::milliseconds ghost_move_interval(250);
+	auto last_ghost_move_time = std::chrono::steady_clock::now();
+	
 	while (true) {
-		// pobiera wymiary terminala
 		getmaxyx(stdscr, height, width); 
 		
-//		// MOVE GHOST
-//		move_ghost();
+		auto current_time = std::chrono::steady_clock::now();
+		// MOVE GHOST
+		if (current_time - last_ghost_move_time >= ghost_move_interval) {
+			move_ghost();
+			last_ghost_move_time = current_time;
+		}
 		
 		int input = getch();
 		if (input != ERR) {
