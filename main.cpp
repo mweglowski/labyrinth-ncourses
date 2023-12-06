@@ -6,36 +6,7 @@
 #include <chrono>
 #include <string>
 
-
-//std::vector<std::string> maze = {
-//        "#############################################################",
-//        "#  #           #                             #     #     #  #",
-//        "#  #  ####  #  ####  #  #######  ####  ##########  ####  #  #",
-//        "#  #  #     #     #  #        #  #              #        #  #",
-//        "#  #  #  #######  ####  #  #######  #  ####  ##########  #  #",
-//        "#     #  #           #  #  #     #  #  #     #  #           #",
-//        "#############  #  ####  #  #  #############  #  ####  ####  #",
-//        "#  #           #        #        #  #  #        #     #     #",
-//        "#  #######  #######  ####  #  ####  #  ####  ##########  #  #",
-//        "#     #     #  #  #  #  #  #  #  #                    #  #  #",
-//        "####  #  ####  #  #  #  #######  ####  #  ####  #######  #  #",
-//        "#        #           #     #  #        #  #        #  #  #  #",
-//        "#  #######  ####  ####  #  #  ####  ##########  #  #  ####  #",
-//        "#  #           #        #  #     #  #     #  #  #  #        #",
-//        "#  #  ####  ##########  ####  #  #  #  #  #  ##########  ####",
-//        "#     #     #  #              #  #     #  #  #     #        #",
-//        "####  ####  #  #######  #######  #  #######  #  #######  ####",
-//        "#     #     #     #        #     #        #     #     #     #",
-//        "##########  #  ####  ####  ####  #  ####  #  ####  #######  #",
-//        "#        #        #  #  #  #  #  #     #     #              #",
-//        "#  #######  #  #  #  #  ####  #  ####  #  #  #  #  ####  #  #",
-//        "#              #  #  #     #     #  #  #  #     #  #  #     #",
-//        "#  #############  #  ####  #  #######  ####  #  #  #  ####  #",
-//        "#  #  #     #     #  #     #              #  #        #     #",
-//        "#  #  ####  ####  #  #  ##########  #############  ####  #  #",
-//        "#           #                             #        #     #  #",
-//        "#############################################################",
-//    };
+std::vector<std::vector<std::string>> mazes = {};
 std::vector<std::string> maze = {};
     
 // CONSTANT VALUE OF INITIAL COIN CHARACTER
@@ -43,8 +14,13 @@ char coin_char = '.';
 char wall_char = '#';
 char player_char = '@';
 char ghost_char = '?';
-    
-//std::vector<std::vector<int>> coin_initial_positions = {};
+
+// MAZE PARAMETERS
+int maze_width = 0;
+int maze_height = 0;
+
+// CURRENT LEVEL
+int current_level = 0;
 
 // TOTAL COINS AT GAME START
 int initial_coin_quantity = 0;
@@ -168,6 +144,22 @@ void move_ghost() {
     }
 }
 
+void get_levels() {
+	std::ifstream file("levels.txt");
+	
+	if (file.is_open()) {
+    std::string line;
+    while (std::getline(file, line)) {
+    	if (line == "") {
+    		mazes.push_back(maze);
+    		maze = {};
+			} else {
+      	maze.push_back(line);
+			}
+    }
+    file.close();
+	}	
+}
 
 void ncurses_init_colors() {
 	start_color();
@@ -237,52 +229,16 @@ int main(void) {
 	WINDOW * mainwin = initscr();
 	ncurses_config();
 	
-	// READING FILE
-	std::ifstream file("maze.txt");
-	if (file.is_open()) {
-	    std::string line;
-	    while (std::getline(file, line)) {
-	        maze.push_back(line);
-	    }
-	    file.close();
-	}	
+	// READING LEVELS FROM FILE
+	get_levels();	
+	
+	current_level = 0;
+	maze = mazes[current_level];
 	
 	// CREATE MAZE
-	std::vector<std::vector<std::string>> mazes = {};
-	int maze_width = 30;
-	int maze_height = 10;
-	int levels_quantity = 5;
-	
-//	for (int level_index = 0; level_index < levels_quantity; level_index++) {
-//		std::vector<std::string> maze = {};
-//		std::string row = "";
-//		
-//		for (int i = 0; i < maze_height; i++) {
-//			row = "";
-//			
-//			for (int j = 0; j < maze_width; j++) {
-//				if (get_random_int(0, 100) >= 95 || j == 0 || j == maze_width - 1 || i == 0 || i == maze_height - 1) {
-//					row += '#';
-//				} else {
-//					row += ' ';
-//				}
-//			}
-//			
-//			maze.push_back(row);
-//		}
-//		mazes.push_back(maze);
-//	}
-	
-//	maze = mazes[0];
-	
-//	std::ifstream file("data.txt");
-//  std::string line;
-//  int i = 0;
-//  while (std::getline(file, line)) {
-//    maze[0][i] = line[i];
-//    i += 1;
-//  }
-//  file.close();
+	maze_width = maze[0].size();
+	maze_height = maze.size();
+	int levels_quantity = mazes.size();
 	
 	// INITIALIZE PLAYER
 	int player_character = '@';
@@ -297,7 +253,6 @@ int main(void) {
 	// INITIALIZE GHOST
 	init_ghost(maze_height, maze_width);
 	
-	
 	// FILL BLANKS WITH COINS
 	for (int i = 0; i < maze.size(); i++) {
 		for (int j = 0; j < maze[0].length(); j++) {
@@ -309,8 +264,9 @@ int main(void) {
 		}
 	}
 
-	int width = 0, height = 0;
+	int width = 100, height = 100;
 	
+	// GHOST MOVE INTERVALS
 	std::chrono::milliseconds ghost_move_interval(250);
 	auto last_ghost_move_time = std::chrono::steady_clock::now();
 	
@@ -360,7 +316,6 @@ int main(void) {
 				case 'Q':
 					return 0;
 				default:
-//					player_character = input;
 					continue;
 			}
 		}
@@ -373,7 +328,7 @@ int main(void) {
 			return EXIT_SUCCESS;
 		}
 		
-		// CHECK IF COINS HAS BEEN FOUND
+		// CHECK IF COIN HAS BEEN FOUND
 		if (check_for(player_row_index, player_col_index, "coin")) {
 			coin_found_positions.push_back({player_row_index, player_col_index});
 			coin_found_counter += 1;
@@ -382,18 +337,54 @@ int main(void) {
 			remove_coin_from_maze(player_row_index, player_col_index);
 		}
 		
-		// CHECK FOR WIN
-		if (coin_found_counter == initial_coin_quantity) {
-			delwin(mainwin);
-			endwin();
-			refresh();
-			return EXIT_SUCCESS;
-		}		
+		// CHECK FOR WIN AND SET NEXT LEVEL
+//		if (coin_found_counter == initial_coin_quantity) {
+		if (coin_found_counter == 5) {
+			// CHECK FOR WIN (WHETHER ALL LEVELS HAVE BEEN COMPLETED
+			if (current_level + 1 == mazes.size()) {
+				delwin(mainwin);
+				endwin();
+				refresh();
+				return EXIT_SUCCESS;
+			}
+			
+			coin_found_counter = 0;
+			coin_found_positions = {};
+			
+			current_level += 1;
+			maze = mazes[current_level];
+			maze_height = maze.size();
+			maze_width = maze[0].length();
+			
+			// INITIALIZE PLAYER
+			player_character = '$';
+			player_row_index = get_random_int(1, maze_height - 2);
+			player_col_index = get_random_int(1, maze_width - 2);
+			
+			while (check_for(player_row_index, player_col_index, "wall")) {
+				player_row_index = get_random_int(1, maze_height - 2);
+				player_col_index = get_random_int(1, maze_width - 2);
+			}
+			
+			// INITIALIZE GHOST
+			init_ghost(maze_height, maze_width);
+			
+			// FILL MAZE WITH COINS
+			initial_coin_quantity = 0;
+			for (int i = 0; i < maze.size(); i++) {
+				for (int j = 0; j < maze[0].length(); j++) {
+					if (maze[i][j] == ' ') {
+						maze[i][j] = coin_char;
+						initial_coin_quantity += 1;
+					}
+				}
+			}
+		}
 		
 		print_board(player_col_index, player_row_index, player_character);
 	}
 	
-	// zakańczamy prace ncurses
+	// END PROCESS
 	delwin(mainwin);
 	endwin();
 	refresh();
