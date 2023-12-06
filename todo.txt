@@ -1,0 +1,5 @@
+higher level -> more ghosts
+
+ghost movement logic like in normal pacman
+
+jumping over the wall
