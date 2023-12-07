@@ -6,34 +6,39 @@
 #include <chrono>
 #include <string>
 
+
+// ======== MAZE/LEVELS ========
 std::vector<std::vector<std::string>> mazes = {};
 std::vector<std::string> maze = {};
-    
 // CONSTANT VALUE OF INITIAL COIN CHARACTER
 char coin_char = '.';
 char wall_char = '#';
 char player_char = '@';
 char ghost_char = '?';
-
 // MAZE PARAMETERS
 int maze_width = 0;
 int maze_height = 0;
-
 // CURRENT LEVEL
 int current_level = 0;
 
+// ======== COINS ========
 // TOTAL COINS AT GAME START
 int initial_coin_quantity = 0;
-    
 // POSTIIONS OF COINS THAT HAVE BEEN FOUND
 std::vector<std::vector<int>> coin_found_positions = {};
-
 // COUNTER OF COINS FOUND
 int coin_found_counter = 0;
 
+// PLAYER
+
+
+// ======== GHOSTS ========
+// CURRENT NUMBER OF GHOSTS ON THE MAP
+int ghost_quantity = 0;
 // POSITION OF GHOST
 std::vector<int> ghost_coords = {};
-
+// POSITION OF GHOSTS
+std::vector<std::vector<int>> ghosts_coords = {};
 // IF PLAYER ENCOUNTERED GHOST
 bool ghost_encountered = false;
 
@@ -73,8 +78,12 @@ bool check_for(int row_index, int col_index, std::string object_to_check) {
 	} else if (object_to_check == "wall") {
 		character = wall_char;
 	} else if (object_to_check == "ghost") {
-		if (ghost_coords[0] == row_index && ghost_coords[1] == col_index) {
-			return true;
+		for (int ghost_index = 0; ghost_index < ghost_quantity; ghost_index++) {
+			std::vector<int> current_ghost_coords = ghosts_coords[ghost_index];
+		
+			if (current_ghost_coords[0] == row_index && current_ghost_coords[1] == col_index) {
+				return true;
+			}
 		}
 		return false;
 	} else {
@@ -91,16 +100,22 @@ void remove_coin_from_maze(int row_index, int col_index) {
 	maze[row_index][col_index] = ' ';
 }
 
-void init_ghost(int maze_height, int maze_width) {
-	int ghost_row_index = get_random_int(2, maze_height - 2);
-	int ghost_col_index = get_random_int(2, maze_width - 2);
+void init_ghosts(int maze_height, int maze_width, int ghost_quantity) {
+	int ghost_row_index = 0;
+	int ghost_col_index = 0;
 	
-	while (maze[ghost_row_index][ghost_col_index] == '#') {
+	for (int ghost_index = 0; ghost_index < ghost_quantity; ghost_index++) {
 		ghost_row_index = get_random_int(2, maze_height - 2);
 		ghost_col_index = get_random_int(2, maze_width - 2);
+		
+		while (maze[ghost_row_index][ghost_col_index] == '#') {
+			ghost_row_index = get_random_int(2, maze_height - 2);
+			ghost_col_index = get_random_int(2, maze_width - 2);
+		}
+		
+		std::vector<int> current_ghost_coords = {ghost_row_index, ghost_col_index};
+		ghosts_coords.push_back(current_ghost_coords);
 	}
-	
-	ghost_coords = {ghost_row_index, ghost_col_index};
 }
 
 bool is_direction_available(int direction, std::vector<int> available_directions) {
@@ -112,12 +127,15 @@ bool is_direction_available(int direction, std::vector<int> available_directions
 	return false;
 }
 
-void move_ghost() {
-    std::vector<std::vector<int>> possible_moves;
+void move_ghosts() {
+	for (int ghost_index = 0; ghost_index < ghost_quantity; ghost_index++) {
+    std::vector<int> current_ghost_coords = ghosts_coords[ghost_index];
+		
+		std::vector<std::vector<int>> possible_moves;
     
     // Current ghost coordinates
-    int ghost_row = ghost_coords[0];
-    int ghost_col = ghost_coords[1];
+    int ghost_row = current_ghost_coords[0];
+    int ghost_col = current_ghost_coords[1];
 
     // Check each direction for a possible move
     // UP
@@ -140,8 +158,9 @@ void move_ghost() {
     // If there are possible moves, select one at random
     if (!possible_moves.empty()) {
       int move_index = get_random_int(0, possible_moves.size() - 1);
-      ghost_coords = possible_moves[move_index];
+      ghosts_coords[ghost_index] = possible_moves[move_index];
     }
+	}
 }
 
 void get_levels() {
@@ -159,6 +178,17 @@ void get_levels() {
     }
     file.close();
 	}	
+}
+
+void fill_maze_with_coins() {
+	for (int i = 0; i < maze.size(); i++) {
+		for (int j = 0; j < maze[0].length(); j++) {
+			if (maze[i][j] == ' ') {
+				maze[i][j] = coin_char;
+				initial_coin_quantity += 1;
+			}
+		}
+	}
 }
 
 void ncurses_init_colors() {
@@ -250,19 +280,12 @@ int main(void) {
 		player_col_index = get_random_int(1, maze_width - 2);
 	}
 	
-	// INITIALIZE GHOST
-	init_ghost(maze_height, maze_width);
+	// INITIALIZE GHOSTS
+	ghost_quantity = 2;
+	init_ghosts(maze_height, maze_width, ghost_quantity);
 	
 	// FILL BLANKS WITH COINS
-	for (int i = 0; i < maze.size(); i++) {
-		for (int j = 0; j < maze[0].length(); j++) {
-			if (maze[i][j] == ' ') {
-//				coin_initial_positions.push_back({i, j});
-				maze[i][j] = coin_char;
-				initial_coin_quantity += 1;
-			}
-		}
-	}
+	fill_maze_with_coins();
 
 	int width = 100, height = 100;
 	
@@ -276,7 +299,7 @@ int main(void) {
 		auto current_time = std::chrono::steady_clock::now();
 		// MOVE GHOST
 		if (current_time - last_ghost_move_time >= ghost_move_interval) {
-			move_ghost();
+			move_ghosts();
 			last_ghost_move_time = current_time;
 		}
 		
@@ -284,31 +307,58 @@ int main(void) {
 		if (input != ERR) {
 			switch(input) {
 				case KEY_UP:
-					// sprawdzamy czy nie wychodzimy poza ekran
-					if (player_row_index > 0) {
+					if (player_row_index > 1) {
 						if (can_player_move(player_row_index - 1, player_col_index)) {
 							player_row_index -= 1;
 						}
 					}
 					break;
 				case KEY_DOWN:
-					if (player_row_index < height - 1) {
+					if (player_row_index < maze_height - 1) {
 						if (can_player_move(player_row_index + 1, player_col_index)) {
 							player_row_index += 1;
 						}
 					}
 					break;
 				case KEY_LEFT:
-					if (player_col_index > 0) {
+					if (player_col_index > 1) {
 						if (can_player_move(player_row_index, player_col_index - 1)) {
 							player_col_index -= 1;
 						}
 					}
 					break;
 				case KEY_RIGHT:
-					if (player_col_index < width - 1) {
+					if (player_col_index < maze_width - 1) {
 						if (can_player_move(player_row_index, player_col_index + 1)) {
 							player_col_index += 1;
+						}
+					}
+					break;
+				case 'w':
+					if (player_row_index > 2) {
+						if (can_player_move(player_row_index - 2, player_col_index)) {
+							player_row_index -= 2;
+						}
+					}
+					break;
+				case 'a':
+					if (player_col_index > 2) {
+						if (can_player_move(player_row_index, player_col_index - 2)) {
+							player_col_index -= 2;
+						}
+					}
+					break;
+				case 's':
+					if (player_row_index < maze_height - 2) {
+						if (can_player_move(player_row_index + 2, player_col_index)) {
+							player_row_index += 2;
+						}
+					}
+					break;
+				case 'd':
+					if (player_col_index < maze_width - 2) {
+						if (can_player_move(player_row_index, player_col_index + 2)) {
+							player_col_index += 2;
 						}
 					}
 					break;
@@ -338,8 +388,8 @@ int main(void) {
 		}
 		
 		// CHECK FOR WIN AND SET NEXT LEVEL
-//		if (coin_found_counter == initial_coin_quantity) {
-		if (coin_found_counter == 5) {
+		if (coin_found_counter == initial_coin_quantity) {
+//		if (coin_found_counter == 5) {
 			// CHECK FOR WIN (WHETHER ALL LEVELS HAVE BEEN COMPLETED
 			if (current_level + 1 == mazes.size()) {
 				delwin(mainwin);
@@ -357,7 +407,9 @@ int main(void) {
 			maze_width = maze[0].length();
 			
 			// INITIALIZE PLAYER
-			player_character = '$';
+			int random_char_index = get_random_int(0, 5);
+			std::vector<char> random_chars = {'$', '%', '&', '@', '#'};
+			player_character = random_chars[random_char_index];
 			player_row_index = get_random_int(1, maze_height - 2);
 			player_col_index = get_random_int(1, maze_width - 2);
 			
@@ -366,19 +418,15 @@ int main(void) {
 				player_col_index = get_random_int(1, maze_width - 2);
 			}
 			
-			// INITIALIZE GHOST
-			init_ghost(maze_height, maze_width);
+			// INITIALIZE GHOSTS 
+			// INCREASING NUMBER OF GHOSTS
+			ghosts_coords = {};
+			ghost_quantity += 2;
+			init_ghosts(maze_height, maze_width, ghost_quantity);
 			
 			// FILL MAZE WITH COINS
 			initial_coin_quantity = 0;
-			for (int i = 0; i < maze.size(); i++) {
-				for (int j = 0; j < maze[0].length(); j++) {
-					if (maze[i][j] == ' ') {
-						maze[i][j] = coin_char;
-						initial_coin_quantity += 1;
-					}
-				}
-			}
+			fill_maze_with_coins();
 		}
 		
 		print_board(player_col_index, player_row_index, player_character);
