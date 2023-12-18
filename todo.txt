@@ -1,1 +1,1 @@
-ghost movement logic like in normal pacman
+project preview in readme
