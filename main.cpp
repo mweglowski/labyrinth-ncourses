@@ -29,9 +29,6 @@ std::vector<std::vector<int>> coin_found_positions = {};
 // COUNTER OF COINS FOUND
 int coin_found_counter = 0;
 
-// PLAYER
-
-
 // ======== GHOSTS ========
 // CURRENT NUMBER OF GHOSTS ON THE MAP
 int ghost_quantity = 0;
@@ -41,7 +38,8 @@ std::vector<int> ghost_coords = {};
 std::vector<std::vector<int>> ghosts_coords = {};
 // IF PLAYER ENCOUNTERED GHOST
 bool ghost_encountered = false;
-
+// LAST MOVE OF EACH GHOST
+std::vector<int> ghost_last_moves = {0, 0, 0, 0};
     
 // USEFUL FUNCTIONS
 int get_random_int(int min, int max) {
@@ -129,9 +127,16 @@ bool is_direction_available(int direction, std::vector<int> available_directions
 
 void move_ghosts() {
 	for (int ghost_index = 0; ghost_index < ghost_quantity; ghost_index++) {
+		bool top_available = false;
+		bool right_available = false;
+		bool bottom_available = false;
+		bool left_available = false;
+		
     std::vector<int> current_ghost_coords = ghosts_coords[ghost_index];
 		
 		std::vector<std::vector<int>> possible_moves;
+		// 0, 1, 2, 3 = top, right, bottom, left
+		std::vector<int> possible_directions = {};
     
     // Current ghost coordinates
     int ghost_row = current_ghost_coords[0];
@@ -140,25 +145,74 @@ void move_ghosts() {
     // Check each direction for a possible move
     // UP
     if (ghost_row > 0 && maze[ghost_row - 1][ghost_col] != wall_char) {
+    	top_available = true;
+    	possible_directions.push_back(0);
       possible_moves.push_back({ghost_row - 1, ghost_col});
+    }
+    // RIGHT
+    if (ghost_col < maze[0].size() - 1 && maze[ghost_row][ghost_col + 1] != wall_char) {
+    	right_available = true;
+    	possible_directions.push_back(1);
+      possible_moves.push_back({ghost_row, ghost_col + 1});
     }
     // DOWN
     if (ghost_row < maze.size() - 1 && maze[ghost_row + 1][ghost_col] != wall_char) {
+    	bottom_available = true;
+    	possible_directions.push_back(2);
       possible_moves.push_back({ghost_row + 1, ghost_col});
     }
     // LEFT
     if (ghost_col > 0 && maze[ghost_row][ghost_col - 1] != wall_char) {
+    	left_available = true;
+    	possible_directions.push_back(3);
     	possible_moves.push_back({ghost_row, ghost_col - 1});
-    }
-    // RIGHT
-    if (ghost_col < maze[0].size() - 1 && maze[ghost_row][ghost_col + 1] != wall_char) {
-      possible_moves.push_back({ghost_row, ghost_col + 1});
     }
 
     // If there are possible moves, select one at random
     if (!possible_moves.empty()) {
-      int move_index = get_random_int(0, possible_moves.size() - 1);
-      ghosts_coords[ghost_index] = possible_moves[move_index];
+			int last_move = ghost_last_moves[ghost_index];
+			
+			// IF THERE ARE 2 POSSIBLE MOVES, WE DO NOT CHOOSE THE LAST MOVE
+			if (possible_moves.size() == 2) {
+				int move_index = get_random_int(0, possible_directions.size() - 1);
+				
+				// IF GHOST CAN REPEAT LAST MOVE (GO IN THE SAME DIRECTION)
+				if (possible_directions[0] == last_move || possible_directions[1] == last_move) {
+					if (possible_directions[0] == last_move) {
+						ghosts_coords[ghost_index] = possible_moves[0];
+					} else {
+						ghosts_coords[ghost_index] = possible_moves[1];
+					}
+				} else {
+					// IF IT CANNOT GO IN THE SAME DIRECTION
+	      	int direction = possible_directions[move_index];
+					
+					if (last_move == 0 || last_move == 2) {
+						if (possible_directions[0] == 0 || possible_directions[0] == 2) {
+							ghosts_coords[ghost_index] = possible_moves[1];
+	      			ghost_last_moves[ghost_index] = possible_directions[1];
+						} else {
+							ghosts_coords[ghost_index] = possible_moves[0];
+	      			ghost_last_moves[ghost_index] = possible_directions[0];
+						}
+					} else {
+						if (possible_directions[0] == 1 || possible_directions[0] == 3) {
+							ghosts_coords[ghost_index] = possible_moves[1];
+	      			ghost_last_moves[ghost_index] = possible_directions[1];
+						} else {
+							ghosts_coords[ghost_index] = possible_moves[0];
+	      			ghost_last_moves[ghost_index] = possible_directions[0];
+						}
+					}
+					
+				}
+			} else {
+				int move_index = get_random_int(0, possible_moves.size() - 1);
+      	ghosts_coords[ghost_index] = possible_moves[move_index];
+      	
+      	int direction = possible_directions[move_index];
+      	ghost_last_moves[ghost_index] = direction;
+			}
     }
 	}
 }
@@ -408,7 +462,7 @@ int main(void) {
 			
 			// INITIALIZE PLAYER
 			int random_char_index = get_random_int(0, 5);
-			std::vector<char> random_chars = {'$', '%', '&', '@', '#'};
+			std::vector<char> random_chars = {'$', '%', '&', '!'};
 			player_character = random_chars[random_char_index];
 			player_row_index = get_random_int(1, maze_height - 2);
 			player_col_index = get_random_int(1, maze_width - 2);
