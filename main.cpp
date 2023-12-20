@@ -231,7 +231,7 @@ void get_levels() {
 			}
     }
     file.close();
-	}	
+	}
 }
 
 void fill_maze_with_coins() {
@@ -311,6 +311,7 @@ void print_board(int x, int y, int character) {
 
 int main(void) {
 	WINDOW * mainwin = initscr();
+	
 	ncurses_config();
 	
 	// READING LEVELS FROM FILE
@@ -461,8 +462,8 @@ int main(void) {
 			maze_width = maze[0].length();
 			
 			// INITIALIZE PLAYER
-			int random_char_index = get_random_int(0, 5);
 			std::vector<char> random_chars = {'$', '%', '&', '!'};
+			int random_char_index = get_random_int(0, random_chars.size());
 			player_character = random_chars[random_char_index];
 			player_row_index = get_random_int(1, maze_height - 2);
 			player_col_index = get_random_int(1, maze_width - 2);
