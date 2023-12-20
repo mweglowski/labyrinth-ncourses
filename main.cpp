@@ -308,8 +308,12 @@ void ncurses_config() {
 	noecho();
 }
 
-void print_board(int x, int y, int character) {
+void print_board(Player player) {
 	clear();
+	
+	// use get coords method 
+	int player_row_index = player.coords.row_index;
+	int player_col_index = player.coords.col_index;
 	
 	// MOVE GHOST
 //	move_ghost();
@@ -344,7 +348,7 @@ void print_board(int x, int y, int character) {
 	}
 	
 	attron(COLOR_PAIR(3));
-	move(y, x);
+	move(player_row_index, player_col_index);
 	addch(character);
 	move(0, 0);
 	attroff(COLOR_PAIR(3));
@@ -531,7 +535,7 @@ int main(void) {
 			fill_maze_with_coins();
 		}
 		
-		print_board(player_col_index, player_row_index, player_character);
+		print_board(player);
 	}
 	
 	// END PROCESS
