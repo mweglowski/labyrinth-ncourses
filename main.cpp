@@ -79,23 +79,29 @@ class Game {
 		
 		Tools tools;
 		
-		Game() : current_level(0), COIN_CHAR('.'), WALL_CHAR('#'), PLAYER_CHAR('@'), GHOST_CHAR('?'), initial_coin_quantity(0), coin_found_counter(0), ghost_quantity(0), tools() {};
+		Game() : current_level(0), COIN_CHAR('.'), WALL_CHAR('#'), PLAYER_CHAR('@'), GHOST_CHAR('?'), initial_coin_quantity(0), coin_found_counter(0), ghost_quantity(2), tools() {};
 		
    	void get_levels() {
 			std::ifstream file("levels.txt");
+			
+			std::vector<std::string> current_maze = {};
 			
 			if (file.is_open()) {
 		    std::string line;
 		    while (std::getline(file, line)) {
 		    	if (line == "") {
-		    		mazes.push_back(maze);
-		    		maze = {};
+		    		mazes.push_back(current_maze);
+		    		current_maze = {};
 					} else {
-		      	maze.push_back(line);
+		      	current_maze.push_back(line);
 					}
 		    }
 		    file.close();
 			}
+		}
+		
+		void set_maze() {
+			maze = mazes[current_level];
 		}
 		
 		bool can_player_move(int row_index, int col_index) {
@@ -230,9 +236,15 @@ class Game {
 							if (possible_directions[0] == last_move) {
 								ghosts[ghost_index].coords.row_index = possible_moves[0][0];
 								ghosts[ghost_index].coords.col_index = possible_moves[0][1];
+								if (check_for(ghost_row, ghost_col, "player")) {
+									ghost_encountered = true;
+								}
 							} else {
 								ghosts[ghost_index].coords.row_index = possible_moves[1][0];
 								ghosts[ghost_index].coords.col_index = possible_moves[1][1];
+								if (check_for(ghost_row, ghost_col, "player")) {
+									ghost_encountered = true;
+								}
 							}
 						} else {
 							// IF IT CANNOT GO IN THE SAME DIRECTION
@@ -242,20 +254,32 @@ class Game {
 								if (possible_directions[0] == 0 || possible_directions[0] == 2) {
 									ghosts[ghost_index].coords.row_index = possible_moves[1][0];
 									ghosts[ghost_index].coords.col_index = possible_moves[1][1];
+									if (check_for(ghost_row, ghost_col, "player")) {
+										ghost_encountered = true;
+									}
 			      			ghost_last_moves[ghost_index] = possible_directions[1];
 								} else {
 									ghosts[ghost_index].coords.row_index = possible_moves[0][0];
 									ghosts[ghost_index].coords.col_index = possible_moves[0][1];
+									if (check_for(ghost_row, ghost_col, "player")) {
+										ghost_encountered = true;
+									}
 			      			ghost_last_moves[ghost_index] = possible_directions[0];
 								}
 							} else {
 								if (possible_directions[0] == 1 || possible_directions[0] == 3) {
 									ghosts[ghost_index].coords.row_index = possible_moves[1][0];
 									ghosts[ghost_index].coords.col_index = possible_moves[1][1];
+									if (check_for(ghost_row, ghost_col, "player")) {
+										ghost_encountered = true;
+									}
 			      			ghost_last_moves[ghost_index] = possible_directions[1];
 								} else {
 									ghosts[ghost_index].coords.row_index = possible_moves[0][0];
 									ghosts[ghost_index].coords.col_index = possible_moves[0][1];
+									if (check_for(ghost_row, ghost_col, "player")) {
+										ghost_encountered = true;
+									}
 			      			ghost_last_moves[ghost_index] = possible_directions[0];
 								}
 							}
@@ -265,6 +289,9 @@ class Game {
 						int move_index = tools.get_random_int(0, possible_moves.size() - 1);
 		      	ghosts[ghost_index].coords.row_index = possible_moves[move_index][0];
 		      	ghosts[ghost_index].coords.col_index = possible_moves[move_index][1];
+		      	if (check_for(ghost_row, ghost_col, "player")) {
+							ghost_encountered = true;
+						}
 		      	
 		      	int direction = possible_directions[move_index];
 		      	ghost_last_moves[ghost_index] = direction;
@@ -285,53 +312,67 @@ class Game {
 		}
 		
 		void print_board(Player player) {
-		clear();
-		
-		int player_row_index = player.coords.row_index;
-		int player_col_index = player.coords.col_index;
-		
-		for (int i = 0; i < maze.size(); i++) {
-			for (int j = 0; j < maze[0].length(); j++) {
-				move(i, j);
-				
-				// PRINT GHOST CHARACTER
-				if (check_for(i, j, "ghost")) {
-					attron(COLOR_PAIR(4));
-					addch('?');
-					attroff(COLOR_PAIR(4));
+			clear();
+			
+			int player_row_index = player.coords.row_index;
+			int player_col_index = player.coords.col_index;
+			
+			for (int i = 0; i < maze_height; i++) {
+				for (int j = 0; j < maze_width; j++) {
+					move(i, j);
 					
-				// CHECK IF CHARACTER FROM MAZE IS NOT A COIN THAT HAS BEEN FOUND
-				} else if (!check_for(i, j, "coin") && is_coin_found(i, j)) {
-					attron(COLOR_PAIR(3));
-					addch(' ');
-					attroff(COLOR_PAIR(3));
-				} else {
-					if (check_for(i, j, "coin")) {
-						attron(COLOR_PAIR(2));
-						addch(COIN_CHAR);
-						attroff(COLOR_PAIR(2));
+					// PRINT GHOST CHARACTER
+					if (check_for(i, j, "ghost")) {
+						attron(COLOR_PAIR(4));
+						addch('?');
+						attroff(COLOR_PAIR(4));
+						
+					// CHECK IF CHARACTER FROM MAZE IS NOT A COIN THAT HAS BEEN FOUND
+					} else if (!check_for(i, j, "coin") && is_coin_found(i, j)) {
+						attron(COLOR_PAIR(3));
+						addch(' ');
+						attroff(COLOR_PAIR(3));
 					} else {
-						attron(COLOR_PAIR(1));
-						addch(maze[i][j]);
-						attroff(COLOR_PAIR(1));
+						if (check_for(i, j, "coin")) {
+							attron(COLOR_PAIR(2));
+							addch(COIN_CHAR);
+							attroff(COLOR_PAIR(2));
+						} else {
+							attron(COLOR_PAIR(1));
+							addch(maze[i][j]);
+							attroff(COLOR_PAIR(1));
+						}
 					}
 				}
 			}
+			
+			attron(COLOR_PAIR(3));
+			move(player_row_index, player_col_index);
+			addch(PLAYER_CHAR);
+			move(0, 0);
+			attroff(COLOR_PAIR(3));
+			
+			refresh();
 		}
-		
-		attron(COLOR_PAIR(3));
-		move(player_row_index, player_col_index);
-		addch(PLAYER_CHAR);
-		move(0, 0);
-		attroff(COLOR_PAIR(3));
-		
-		refresh();
-	}
 
+		void change_player_char() {
+			std::vector<char> random_chars = {'$', '%', '&', '!'};
+			int random_char_index = tools.get_random_int(0, random_chars.size() - 1);
+			PLAYER_CHAR = random_chars[random_char_index];
+		}
 
-		void set_maze_parameters() {
+		void set_maze_parameters(int level) {
 			maze_height = mazes[0].size();
 			maze_width = maze[0].length();
+		}
+		
+		void next_level() {
+			current_level += 1;
+			maze = mazes[current_level];
+			maze_height = maze.size();
+			maze_width = maze[0].length();
+			coin_found_counter = 0;
+			coin_found_positions = {};
 		}
 };
 
@@ -364,36 +405,33 @@ int main(void) {
 	
 	Tools tools = Tools();
 	
+	// CREATE MAZES
 	// READING LEVELS FROM FILE
-	game.get_levels();	
-	
-	// CREATE MAZE
-//	int maze_width = game.maze[0].size();
-//	int maze_height = game.maze.size();
-	game.set_maze_parameters();
+	game.get_levels();
+	game.set_maze();	
+	game.set_maze_parameters(0);
 	int levels_quantity = game.mazes.size();
 	
 	// INITIALIZE PLAYER
-//	char player_character = '@';
-	int player_row_index = tools.get_random_int(1, game.maze_height - 2);
-	int player_col_index = tools.get_random_int(1, game.maze_width - 2);
+	int initial_player_row_index = tools.get_random_int(1, game.maze_height - 2);
+	int initial_player_col_index = tools.get_random_int(1, game.maze_width - 2);
+	game.change_player_char();
 	
-	Coords initial_player_coords = Coords(player_row_index, player_col_index);
-	Player player = Player(initial_player_coords);
-	
-	while (game.check_for(player.coords.row_index, player.coords.col_index, "wall")) {
-		player_row_index = tools.get_random_int(1, game.maze_height - 2);
-		player_col_index = tools.get_random_int(1, game.maze_width - 2);
+	while (game.check_for(initial_player_row_index, initial_player_col_index, "wall")) {
+		initial_player_row_index = tools.get_random_int(1, game.maze_height - 2);
+		initial_player_col_index = tools.get_random_int(1, game.maze_width - 2);
 	}
 	
+	Coords initial_player_coords = Coords(initial_player_row_index, initial_player_col_index);
+	Player player = Player(initial_player_coords);
+	
 	// INITIALIZE GHOSTS
-	game.ghost_quantity = 2;
 	game.init_ghosts();
 	
 	// FILL BLANKS WITH COINS
 	game.fill_maze_with_coins();
 
-	int width = 100, height = 100;
+	int width = 50, height = 50;
 	
 	// GHOST MOVE INTERVALS
 	std::chrono::milliseconds ghost_move_interval(250);
@@ -401,6 +439,9 @@ int main(void) {
 	
 	while (true) {
 		getmaxyx(stdscr, height, width); 
+		
+		int player_current_row_index = player.coords.row_index;
+		int player_current_col_index = player.coords.col_index;
 		
 		auto current_time = std::chrono::steady_clock::now();
 		// MOVE GHOST
@@ -413,57 +454,57 @@ int main(void) {
 		if (input != ERR) {
 			switch(input) {
 				case KEY_UP:
-					if (player_row_index > 1) {
-						if (game.can_player_move(player_row_index - 1, player_col_index)) {
+					if (player_current_row_index > 1) {
+						if (game.can_player_move(player_current_row_index - 1, player_current_col_index)) {
 							player.move(-1, 0);
 						}
 					}
 					break;
 				case KEY_DOWN:
-					if (player_row_index < game.maze_height - 1) {
-						if (game.can_player_move(player_row_index + 1, player_col_index)) {
+					if (player_current_row_index < game.maze_height - 1) {
+						if (game.can_player_move(player_current_row_index + 1, player_current_col_index)) {
 							player.move(1, 0);
 						}
 					}
 					break;
 				case KEY_LEFT:
-					if (player_col_index > 1) {
-						if (game.can_player_move(player_row_index, player_col_index - 1)) {
+					if (player_current_col_index > 1) {
+						if (game.can_player_move(player_current_row_index, player_current_col_index - 1)) {
 							player.move(0, -1);
 						}
 					}
 					break;
 				case KEY_RIGHT:
-					if (player_col_index < game.maze_width - 1) {
-						if (game.can_player_move(player_row_index, player_col_index + 1)) {
+					if (player_current_col_index < game.maze_width - 1) {
+						if (game.can_player_move(player_current_row_index, player_current_col_index + 1)) {
 							player.move(0, 1);
 						}
 					}
 					break;
 				case 'w':
-					if (player_row_index > 2) {
-						if (game.can_player_move(player_row_index - 2, player_col_index)) {
+					if (player_current_row_index > 2) {
+						if (game.can_player_move(player_current_row_index - 2, player_current_col_index)) {
 							player.move(-2, 0);
 						}
 					}
 					break;
 				case 'a':
-					if (player_col_index > 2) {
-						if (game.can_player_move(player_row_index, player_col_index - 2)) {
+					if (player_current_col_index > 2) {
+						if (game.can_player_move(player_current_row_index, player_current_col_index - 2)) {
 							player.move(0, -2);
 						}
 					}
 					break;
 				case 's':
-					if (player_row_index < game.maze_height - 2) {
-						if (game.can_player_move(player_row_index + 2, player_col_index)) {
+					if (player_current_row_index < game.maze_height - 2) {
+						if (game.can_player_move(player_current_row_index + 2, player_current_col_index)) {
 							player.move(2, 0);
 						}
 					}
 					break;
 				case 'd':
-					if (player_col_index < game.maze_width - 2) {
-						if (game.can_player_move(player_row_index, player_col_index + 2)) {
+					if (player_current_col_index < game.maze_width - 2) {
+						if (game.can_player_move(player_current_row_index, player_current_col_index + 2)) {
 							player.move(0, 2);
 						}
 					}
@@ -477,7 +518,7 @@ int main(void) {
 		}
 		
 		// CHECK IF PLAYER ENCOUNTERED GHOST
-		if (game.check_for(player.coords.row_index, player.coords.col_index, "ghost") == true) {
+		if (game.check_for(player_current_row_index, player_current_col_index, "ghost")) {
 			delwin(mainwin);
 			endwin();
 			refresh();
@@ -485,17 +526,17 @@ int main(void) {
 		}
 		
 		// CHECK IF COIN HAS BEEN FOUND
-		if (game.check_for(player.coords.row_index, player.coords.col_index, "coin")) {
-			game.coin_found_positions.push_back({player_row_index, player_col_index});
+		if (game.check_for(player_current_row_index, player_current_col_index, "coin")) {
+			game.coin_found_positions.push_back({player_current_row_index, player_current_col_index});
 			game.coin_found_counter += 1;
 			
 			// REMOVE COIN FROM MAZE
-			game.remove_coin_from_maze(player.coords.row_index, player.coords.col_index);
+			game.remove_coin_from_maze(player_current_row_index, player_current_col_index);
 		}
 		
 		// CHECK FOR WIN AND SET NEXT LEVEL
 		if (game.coin_found_counter == game.initial_coin_quantity) {
-			// CHECK FOR WIN (WHETHER ALL LEVELS HAVE BEEN COMPLETED
+			// CHECK FOR WIN (WHETHER ALL LEVELS HAVE BEEN COMPLETED)
 			if (game.current_level + 1 == game.mazes.size()) {
 				delwin(mainwin);
 				endwin();
@@ -503,25 +544,16 @@ int main(void) {
 				return EXIT_SUCCESS;
 			}
 			
-			game.coin_found_counter = 0;
-			game.coin_found_positions = {};
-			
-			game.current_level += 1;
-			game.maze = game.mazes[game.current_level];
-			game.maze_height = game.maze.size();
-			game.maze_width = game.maze[0].length();
+			game.next_level();
 			
 			// INITIALIZE PLAYER
-			std::vector<char> random_chars = {'$', '%', '&', '!'};
-			int random_char_index = tools.get_random_int(0, random_chars.size());
-			char player_character = random_chars[random_char_index];
-//			player.change_player_char(player_character);
-			player_row_index = tools.get_random_int(1, game.maze_height - 2);
-			player_col_index = tools.get_random_int(1, game.maze_width - 2);
+			player_current_row_index = tools.get_random_int(1, game.maze_height - 2);
+			player_current_col_index = tools.get_random_int(1, game.maze_width - 2);
+			game.change_player_char();
 			
-			while (game.check_for(player_row_index, player_col_index, "wall")) {
-				player_row_index = tools.get_random_int(1, game.maze_height - 2);
-				player_col_index = tools.get_random_int(1, game.maze_width - 2);
+			while (game.check_for(player_current_row_index, player_current_col_index, "wall")) {
+				player_current_row_index = tools.get_random_int(1, game.maze_height - 2);
+				player_current_col_index = tools.get_random_int(1, game.maze_width - 2);
 			}
 			
 			// INITIALIZE GHOSTS 
