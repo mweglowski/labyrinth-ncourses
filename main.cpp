@@ -32,8 +32,6 @@ int coin_found_counter = 0;
 // ======== GHOSTS ========
 // CURRENT NUMBER OF GHOSTS ON THE MAP
 int ghost_quantity = 0;
-// POSITION OF GHOST
-std::vector<int> ghost_coords = {};
 // POSITION OF GHOSTS
 std::vector<std::vector<int>> ghosts_coords = {};
 // IF PLAYER ENCOUNTERED GHOST
@@ -41,14 +39,59 @@ bool ghost_encountered = false;
 // LAST MOVE OF EACH GHOST
 std::vector<int> ghost_last_moves = {0, 0, 0, 0};
     
+class Tools {
+	public:
+		int get_random_int(int min, int max) {
+			static std::random_device random_device;
+			static std::mt19937 generator(random_device());
+			
+			std::uniform_int_distribution<> distribution(min, max);
+			return distribution(generator);
+		}
+};
+    
 // USEFUL FUNCTIONS
-int get_random_int(int min, int max) {
-	static std::random_device random_device;
-	static std::mt19937 generator(random_device());
-	
-	std::uniform_int_distribution<> distribution(min, max);
-	return distribution(generator);
-}
+struct Coords{
+	int row_index, col_index;
+	Coords(int row_index = 0, int col_index = 0) : row_index(row_index), col_index(col_index) {};
+};
+
+class Player {
+	private:
+		char PLAYER_CHAR = '@';
+		Coords coords = {};
+		int row_index = 0;
+		int col_index = 0;
+	public: 
+		Player(char initial_char, Coords initial_coords) {
+			this->PLAYER_CHAR = initial_char;
+			this->coords = initial_coords;
+		}
+		
+		void change_player_char(char new_char) {
+			PLAYER_CHAR = new_char;
+		}
+		
+		void move_up() {
+			row_index -= 1;
+		}
+		
+		void move_right() {
+			col_index += 1;
+		}
+		
+		void move_down() {
+			row_index -= 1;
+		}
+		
+		void move_left() {
+			col_index -= 1;
+		}
+		
+		Coords get_coords() {
+			return coords;
+		}
+};
 
 bool can_player_move(int row_index, int col_index) {
 	
@@ -98,17 +141,17 @@ void remove_coin_from_maze(int row_index, int col_index) {
 	maze[row_index][col_index] = ' ';
 }
 
-void init_ghosts(int maze_height, int maze_width, int ghost_quantity) {
+void init_ghosts(int maze_height, int maze_width, int ghost_quantity, Tools tools) {
 	int ghost_row_index = 0;
 	int ghost_col_index = 0;
 	
 	for (int ghost_index = 0; ghost_index < ghost_quantity; ghost_index++) {
-		ghost_row_index = get_random_int(2, maze_height - 2);
-		ghost_col_index = get_random_int(2, maze_width - 2);
+		ghost_row_index = tools.get_random_int(2, maze_height - 2);
+		ghost_col_index = tools.get_random_int(2, maze_width - 2);
 		
 		while (maze[ghost_row_index][ghost_col_index] == '#') {
-			ghost_row_index = get_random_int(2, maze_height - 2);
-			ghost_col_index = get_random_int(2, maze_width - 2);
+			ghost_row_index = tools.get_random_int(2, maze_height - 2);
+			ghost_col_index = tools.get_random_int(2, maze_width - 2);
 		}
 		
 		std::vector<int> current_ghost_coords = {ghost_row_index, ghost_col_index};
@@ -125,7 +168,7 @@ bool is_direction_available(int direction, std::vector<int> available_directions
 	return false;
 }
 
-void move_ghosts() {
+void move_ghosts(Tools tools) {
 	for (int ghost_index = 0; ghost_index < ghost_quantity; ghost_index++) {
 		bool top_available = false;
 		bool right_available = false;
@@ -174,7 +217,7 @@ void move_ghosts() {
 			
 			// IF THERE ARE 2 POSSIBLE MOVES, WE DO NOT CHOOSE THE LAST MOVE
 			if (possible_moves.size() == 2) {
-				int move_index = get_random_int(0, possible_directions.size() - 1);
+				int move_index = tools.get_random_int(0, possible_directions.size() - 1);
 				
 				// IF GHOST CAN REPEAT LAST MOVE (GO IN THE SAME DIRECTION)
 				if (possible_directions[0] == last_move || possible_directions[1] == last_move) {
@@ -207,7 +250,7 @@ void move_ghosts() {
 					
 				}
 			} else {
-				int move_index = get_random_int(0, possible_moves.size() - 1);
+				int move_index = tools.get_random_int(0, possible_moves.size() - 1);
       	ghosts_coords[ghost_index] = possible_moves[move_index];
       	
       	int direction = possible_directions[move_index];
@@ -314,6 +357,8 @@ int main(void) {
 	
 	ncurses_config();
 	
+	Tools tools = Tools();
+	
 	// READING LEVELS FROM FILE
 	get_levels();	
 	
@@ -326,18 +371,20 @@ int main(void) {
 	int levels_quantity = mazes.size();
 	
 	// INITIALIZE PLAYER
-	int player_character = '@';
-	int player_row_index = get_random_int(1, maze_height - 2);
-	int player_col_index = get_random_int(1, maze_width - 2);
+	char player_character = '@';
+	int player_row_index = tools.get_random_int(1, maze_height - 2);
+	int player_col_index = tools.get_random_int(1, maze_width - 2);
+	Coords initial_player_coords = Coords(player_row_index, player_col_index);
+	Player player = Player(player_character, initial_player_coords);
 	
 	while (check_for(player_row_index, player_col_index, "wall")) {
-		player_row_index = get_random_int(1, maze_height - 2);
-		player_col_index = get_random_int(1, maze_width - 2);
+		player_row_index = tools.get_random_int(1, maze_height - 2);
+		player_col_index = tools.get_random_int(1, maze_width - 2);
 	}
 	
 	// INITIALIZE GHOSTS
 	ghost_quantity = 2;
-	init_ghosts(maze_height, maze_width, ghost_quantity);
+	init_ghosts(maze_height, maze_width, ghost_quantity, tools);
 	
 	// FILL BLANKS WITH COINS
 	fill_maze_with_coins();
@@ -354,7 +401,7 @@ int main(void) {
 		auto current_time = std::chrono::steady_clock::now();
 		// MOVE GHOST
 		if (current_time - last_ghost_move_time >= ghost_move_interval) {
-			move_ghosts();
+			move_ghosts(tools);
 			last_ghost_move_time = current_time;
 		}
 		
@@ -444,7 +491,6 @@ int main(void) {
 		
 		// CHECK FOR WIN AND SET NEXT LEVEL
 		if (coin_found_counter == initial_coin_quantity) {
-//		if (coin_found_counter == 5) {
 			// CHECK FOR WIN (WHETHER ALL LEVELS HAVE BEEN COMPLETED
 			if (current_level + 1 == mazes.size()) {
 				delwin(mainwin);
@@ -463,21 +509,22 @@ int main(void) {
 			
 			// INITIALIZE PLAYER
 			std::vector<char> random_chars = {'$', '%', '&', '!'};
-			int random_char_index = get_random_int(0, random_chars.size());
+			int random_char_index = tools.get_random_int(0, random_chars.size());
 			player_character = random_chars[random_char_index];
-			player_row_index = get_random_int(1, maze_height - 2);
-			player_col_index = get_random_int(1, maze_width - 2);
+			player.change_player_char(player_character);
+			player_row_index = tools.get_random_int(1, maze_height - 2);
+			player_col_index = tools.get_random_int(1, maze_width - 2);
 			
 			while (check_for(player_row_index, player_col_index, "wall")) {
-				player_row_index = get_random_int(1, maze_height - 2);
-				player_col_index = get_random_int(1, maze_width - 2);
+				player_row_index = tools.get_random_int(1, maze_height - 2);
+				player_col_index = tools.get_random_int(1, maze_width - 2);
 			}
 			
 			// INITIALIZE GHOSTS 
 			// INCREASING NUMBER OF GHOSTS
 			ghosts_coords = {};
 			ghost_quantity += 2;
-			init_ghosts(maze_height, maze_width, ghost_quantity);
+			init_ghosts(maze_height, maze_width, ghost_quantity, tools);
 			
 			// FILL MAZE WITH COINS
 			initial_coin_quantity = 0;
